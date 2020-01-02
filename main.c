@@ -6,6 +6,15 @@
 const char* APP_NAME = "Robot Maze";
 const int WINDOW_WIDTH = 800;
 const int WINDOW_HEIGHT = 600;
+const double PI = 3.14159265359;
+
+enum KeyStates {
+    UP,
+    DOWN,
+    RIGHT,
+    LEFT,
+    NONE
+};
 
 struct GameWindow {
     SDL_Window *window;
@@ -17,7 +26,15 @@ struct GameData {
     int mouse_x;
     int mouse_y;
     int mouse_down;
+    int key_state;
 };
+
+struct Robot {
+    int position_x;
+    int position_y;
+    double orientation;
+};
+
 
 int init(struct GameWindow *pmaze_window)
 {
@@ -80,6 +97,64 @@ SDL_Texture *brush(struct GameWindow *pmaze_window, struct GameData *pdata, SDL_
     return output;
 }
 
+SDL_Texture* robot_init(struct GameWindow *pmaze_window, struct Robot *robot)
+{
+    SDL_Texture* out;
+    out = SDL_CreateTexture(pmaze_window->renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, 20, 20);
+    if (out == NULL)
+    {
+        printf("Unable to create blank texture! SDL Error: %s\n", SDL_GetError());
+    }
+
+    robot->position_x = WINDOW_WIDTH/2;
+    robot->position_y = WINDOW_HEIGHT/2;
+    robot->orientation = 45;
+
+    return out; 
+}
+
+void draw_robot(struct GameWindow *pmaze_window, struct Robot *robot, SDL_Texture** robot_texture, struct GameData *pdata)
+{
+    SDL_SetRenderTarget(pmaze_window->renderer, *robot_texture);
+    SDL_SetRenderDrawColor(pmaze_window->renderer, 0xFF, 0xFF, 0xFF, 0xFF);
+    SDL_RenderClear(pmaze_window->renderer);
+
+    const int robot_w = 20;
+    const int robot_h = 40;
+
+    switch (pdata->key_state)
+    {
+        case UP:
+            robot->position_y -= 1;
+            break;
+        case DOWN:
+            robot->position_y += 1;
+            break;
+        case RIGHT:
+            robot->position_x += 1;
+            break;
+        case LEFT:
+            robot->position_x -= 1;
+            break;
+        case NONE:
+            break;
+    }
+
+
+    SDL_Rect renderQuad = { robot->position_x, robot->position_y, 50, 50};
+
+    SDL_RenderClear(pmaze_window->renderer);
+
+    SDL_RenderCopyEx(pmaze_window->renderer,
+    *robot_texture, NULL, &renderQuad, 3*robot->orientation, NULL, SDL_FLIP_NONE);
+    SDL_SetRenderDrawColor(pmaze_window->renderer, 0xFF, 0x00, 0x00, 0xFF);
+
+    SDL_SetRenderTarget(pmaze_window->renderer,NULL);
+
+}
+
+
+
 int main(int argc, char* argv[])        
 {
     printf("Hello World\n");
@@ -87,16 +162,18 @@ int main(int argc, char* argv[])
     struct GameWindow maze_window;
     struct GameData data;
     
-    //set NULL
+    //init to NULL
     maze_window.window = NULL;
     maze_window.surface = NULL;
     maze_window.renderer = NULL;
 
     SDL_Surface *maze = NULL;
 
-
     SDL_Rect fillRect = {WINDOW_WIDTH / 4, WINDOW_HEIGHT / 4, WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2};
-    SDL_Texture *test;
+    struct Robot myRobot;
+    SDL_Texture *paint, *robot;
+
+
     if(init(&maze_window) == 0)
     {
         printf("init error\n");
@@ -104,8 +181,12 @@ int main(int argc, char* argv[])
     else
     {
         int quit = 0;
+
         maze = SDL_GetWindowSurface(maze_window.window);
+        paint = robot_init(&maze_window, &myRobot);
+
         data.mouse_down = 0;
+        data.key_state = NONE;
         SDL_Event e;
         while(!quit)
         {
@@ -123,19 +204,45 @@ int main(int argc, char* argv[])
                 {
                     data.mouse_down = 0;
                 }
+                if (e.type == SDL_KEYDOWN)
+                {
+                    switch( e.key.keysym.sym )
+                    {
+                        case SDLK_UP:
+                            data.key_state = UP;
+                            break;
+                        case SDLK_DOWN:
+                            data.key_state = DOWN;
+                            break;
+                        case SDLK_LEFT:
+                            data.key_state = LEFT;
+                            break;
+                        case SDLK_RIGHT:
+                            data.key_state = RIGHT;
+                            break;
+                    }
+                }
+                if (e.type == SDL_KEYUP)
+                {
+                    data.key_state = NONE;
+                }
             }
 
-            SDL_GetMouseState(&data.mouse_x, &data.mouse_y);
+            if (data.mouse_down)
+            {
+                SDL_GetMouseState(&data.mouse_x, &data.mouse_y);
+            }
+
+            //Clear screen
             SDL_RenderClear(maze_window.renderer);
-
-            test = brush(&maze_window, &data, &maze);
-
-            SDL_RenderCopy(maze_window.renderer, test, NULL, NULL);
-
+            paint = brush(&maze_window, &data, &maze);
+            SDL_RenderCopy(maze_window.renderer, paint, NULL, NULL);
+            draw_robot(&maze_window, &myRobot, &paint, &data);
             //Update screen
             SDL_RenderPresent(maze_window.renderer);
 
-            SDL_DestroyTexture(test);
+
+            SDL_DestroyTexture(paint);
         }
     }
     
