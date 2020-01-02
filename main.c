@@ -4,13 +4,19 @@
 #include <SDL2/SDL_image.h>
 
 const char* APP_NAME = "Robot Maze";
-const int WINDOW_WIDTH = 400;
-const int WINDOW_HEIGHT = 300;
+const int WINDOW_WIDTH = 800;
+const int WINDOW_HEIGHT = 600;
 
 struct GameWindow {
     SDL_Window *window;
     SDL_Surface *surface;
     SDL_Renderer *renderer;
+};
+
+struct GameData {
+    int mouse_x;
+    int mouse_y;
+    int mouse_down;
 };
 
 int init(struct GameWindow *pmaze_window)
@@ -61,19 +67,36 @@ void destroy(struct GameWindow *pmaze_window)
     pmaze_window->window = NULL;
 }
 
-int main(int argc, char* argv[])
+SDL_Texture *brush(struct GameWindow *pmaze_window, struct GameData *pdata, SDL_Surface **pmaze)
+{
+    SDL_Texture * output;
+    SDL_Rect fillRect = {pdata->mouse_x-5, pdata->mouse_y-5, 10, 10};
+    if (pdata->mouse_down)
+    {
+        SDL_FillRect(*pmaze, &fillRect, 0xFF00FF00);
+    }
+    
+    output = SDL_CreateTextureFromSurface(pmaze_window->renderer, *pmaze);
+    return output;
+}
+
+int main(int argc, char* argv[])        
 {
     printf("Hello World\n");
 
     struct GameWindow maze_window;
+    struct GameData data;
     
     //set NULL
     maze_window.window = NULL;
     maze_window.surface = NULL;
     maze_window.renderer = NULL;
 
-    SDL_Rect fillRect = {WINDOW_WIDTH / 4, WINDOW_HEIGHT / 4, WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2};
+    SDL_Surface *maze = NULL;
 
+
+    SDL_Rect fillRect = {WINDOW_WIDTH / 4, WINDOW_HEIGHT / 4, WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2};
+    SDL_Texture *test;
     if(init(&maze_window) == 0)
     {
         printf("init error\n");
@@ -81,6 +104,8 @@ int main(int argc, char* argv[])
     else
     {
         int quit = 0;
+        maze = SDL_GetWindowSurface(maze_window.window);
+        data.mouse_down = 0;
         SDL_Event e;
         while(!quit)
         {
@@ -90,18 +115,30 @@ int main(int argc, char* argv[])
                 {
                     quit = 1;
                 }
+                if (e.type == SDL_MOUSEBUTTONDOWN)
+                {
+                    data.mouse_down = 1;
+                }
+                if (e.type == SDL_MOUSEBUTTONUP)
+                {
+                    data.mouse_down = 0;
+                }
             }
-            SDL_SetRenderDrawColor(maze_window.renderer, 0xFF, 0xFF, 0xFF, 0xFF);
+
+            SDL_GetMouseState(&data.mouse_x, &data.mouse_y);
             SDL_RenderClear(maze_window.renderer);
 
-            //Render red filled square
-            SDL_SetRenderDrawColor(maze_window.renderer, 0xFF, 0x00, 0x00, 0xFF);
-            SDL_RenderFillRect(maze_window.renderer, &fillRect);
+            test = brush(&maze_window, &data, &maze);
+
+            SDL_RenderCopy(maze_window.renderer, test, NULL, NULL);
 
             //Update screen
             SDL_RenderPresent(maze_window.renderer);
+
+            SDL_DestroyTexture(test);
         }
     }
+    
     //quit and destroy
     destroy(&maze_window);
     SDL_Quit();
