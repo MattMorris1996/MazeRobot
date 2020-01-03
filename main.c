@@ -2,6 +2,7 @@
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
+#include "math.h"
 
 const char* APP_NAME = "Robot Maze";
 const int WINDOW_WIDTH = 800;
@@ -30,8 +31,8 @@ struct GameData {
 };
 
 struct Robot {
-    int position_x;
-    int position_y;
+    double position_x;
+    double position_y;
     double orientation;
 };
 
@@ -121,30 +122,36 @@ void draw_robot(struct GameWindow *pmaze_window, struct Robot *robot, SDL_Textur
     const int robot_w = 20;
     const int robot_h = 40;
 
+    double unit_y = cos(robot->orientation* (PI/180));
+    double unit_x = sin(robot->orientation* (PI/180));
+
     switch (pdata->key_state)
     {
         case UP:
-            robot->position_y -= 1;
+            robot->position_y -= unit_y;
+            robot->position_x += unit_x;
             break;
         case DOWN:
-            robot->position_y += 1;
+            robot->position_y += unit_y;
+            robot->position_x -= unit_x;
             break;
         case RIGHT:
-            robot->position_x += 1;
+            robot->orientation += 1;
             break;
         case LEFT:
-            robot->position_x -= 1;
+            robot->orientation -= 1;
             break;
         case NONE:
             break;
     }
+    
 
-    SDL_Rect renderQuad = { robot->position_x, robot->position_y, robot_w, robot_h};
+    SDL_Rect renderQuad = { SDL_floor(robot->position_x), SDL_floor(robot->position_y), robot_w, robot_h};
     SDL_RenderClear(pmaze_window->renderer);
     SDL_SetRenderDrawColor(pmaze_window->renderer, 0x00, 0x00, 0xFF, 0xFF);
 
     SDL_SetRenderTarget(pmaze_window->renderer,NULL);
-    SDL_RenderCopyEx(pmaze_window->renderer,*robot_texture,NULL, &renderQuad, 5, NULL, SDL_FLIP_NONE);
+    SDL_RenderCopyEx(pmaze_window->renderer,*robot_texture,NULL, &renderQuad, robot->orientation, NULL, SDL_FLIP_NONE);
 
     //SDL_RenderCopyEx(pmaze_window->renderer,*robot_texture, NULL, &renderQuad, robot->orientation, NULL, SDL_FLIP_NONE);
 
