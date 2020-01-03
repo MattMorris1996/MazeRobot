@@ -92,7 +92,7 @@ SDL_Texture *brush(struct GameWindow *pmaze_window, struct GameData *pdata, SDL_
     {
         SDL_FillRect(*pmaze, &fillRect, 0xFF00FF00);
     }
-    
+    SDL_SetColorKey( *pmaze, SDL_TRUE, SDL_MapRGB( (*pmaze)->format, 0x00, 0x00, 0x00 ) );
     output = SDL_CreateTextureFromSurface(pmaze_window->renderer, *pmaze);
     return output;
 }
@@ -100,7 +100,7 @@ SDL_Texture *brush(struct GameWindow *pmaze_window, struct GameData *pdata, SDL_
 SDL_Texture* robot_init(struct GameWindow *pmaze_window, struct Robot *robot)
 {
     SDL_Texture* out;
-    out = SDL_CreateTexture(pmaze_window->renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, 20, 20);
+    out = SDL_CreateTexture(pmaze_window->renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, 40, 30);
     if (out == NULL)
     {
         printf("Unable to create blank texture! SDL Error: %s\n", SDL_GetError());
@@ -116,8 +116,7 @@ SDL_Texture* robot_init(struct GameWindow *pmaze_window, struct Robot *robot)
 void draw_robot(struct GameWindow *pmaze_window, struct Robot *robot, SDL_Texture** robot_texture, struct GameData *pdata)
 {
     SDL_SetRenderTarget(pmaze_window->renderer, *robot_texture);
-    SDL_SetRenderDrawColor(pmaze_window->renderer, 0xFF, 0xFF, 0xFF, 0xFF);
-    SDL_RenderClear(pmaze_window->renderer);
+    SDL_SetRenderDrawColor(pmaze_window->renderer, 0x00, 0xFF, 0xFF, 0xFF);
 
     const int robot_w = 20;
     const int robot_h = 40;
@@ -140,16 +139,16 @@ void draw_robot(struct GameWindow *pmaze_window, struct Robot *robot, SDL_Textur
             break;
     }
 
-
-    SDL_Rect renderQuad = { robot->position_x, robot->position_y, 50, 50};
-
+    SDL_Rect renderQuad = { robot->position_x, robot->position_y, robot_w, robot_h};
     SDL_RenderClear(pmaze_window->renderer);
-
-    SDL_RenderCopyEx(pmaze_window->renderer,
-    *robot_texture, NULL, &renderQuad, 3*robot->orientation, NULL, SDL_FLIP_NONE);
-    SDL_SetRenderDrawColor(pmaze_window->renderer, 0xFF, 0x00, 0x00, 0xFF);
+    SDL_SetRenderDrawColor(pmaze_window->renderer, 0x00, 0x00, 0xFF, 0xFF);
 
     SDL_SetRenderTarget(pmaze_window->renderer,NULL);
+    SDL_RenderCopyEx(pmaze_window->renderer,*robot_texture,NULL, &renderQuad, 5, NULL, SDL_FLIP_NONE);
+
+    //SDL_RenderCopyEx(pmaze_window->renderer,*robot_texture, NULL, &renderQuad, robot->orientation, NULL, SDL_FLIP_NONE);
+
+   //SDL_SetRenderTarget(pmaze_window->renderer,NULL);
 
 }
 
@@ -183,8 +182,12 @@ int main(int argc, char* argv[])
         int quit = 0;
 
         maze = SDL_GetWindowSurface(maze_window.window);
-        paint = robot_init(&maze_window, &myRobot);
-
+        robot = robot_init(&maze_window, &myRobot);
+        if (robot == NULL)
+        {
+            printf("failed to load texture\n");
+        }
+        printf("Texture id: %p\n", robot);
         data.mouse_down = 0;
         data.key_state = NONE;
         SDL_Event e;
@@ -235,11 +238,15 @@ int main(int argc, char* argv[])
 
             //Clear screen
             SDL_RenderClear(maze_window.renderer);
+
             paint = brush(&maze_window, &data, &maze);
             SDL_RenderCopy(maze_window.renderer, paint, NULL, NULL);
-            draw_robot(&maze_window, &myRobot, &paint, &data);
-            //Update screen
+
+            draw_robot(&maze_window, &myRobot, &robot, &data);
+
             SDL_RenderPresent(maze_window.renderer);
+            //Update screen
+
 
 
             SDL_DestroyTexture(paint);
