@@ -45,6 +45,8 @@ struct Robot
     double position_x;
     double position_y;
     double orientation;
+    int width;
+    int height;
     struct Sensors sensors;
 };
 
@@ -111,21 +113,36 @@ SDL_Texture *brush(struct GameWindow *pmaze_window, struct GameData *pdata, SDL_
 
 SDL_Texture *robot_init(struct GameWindow *pmaze_window, struct Robot *robot)
 {
-    SDL_Texture *out;
-    out = SDL_CreateTexture(pmaze_window->renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, 40, 30);
-    if (out == NULL)
+    SDL_Texture *robot_texture;
+    SDL_Surface *loaded_surface = IMG_Load( "robot.bmp" );
+    if( loaded_surface == NULL )
     {
-        printf("Unable to create blank texture! SDL Error: %s\n", SDL_GetError());
+        printf( "Unable to load image %s! SDL_image Error: %s\n", "robot.bmp", IMG_GetError() );
+    }
+    else
+    {
+        //Create texture from surface pixels
+        SDL_SetColorKey( loaded_surface, SDL_TRUE, SDL_MapRGB( loaded_surface->format, 0, 0xFF, 0xFF ) );
+        robot_texture = SDL_CreateTextureFromSurface( pmaze_window->renderer, loaded_surface );
+        if( robot_texture == NULL )
+        {
+            printf( "Unable to create texture from %s! SDL Error: %s\n", "robot.bmp", SDL_GetError() );
+        }
+
+        //Get rid of old loaded surface
+        SDL_FreeSurface( loaded_surface );
     }
 
     robot->position_x = WINDOW_WIDTH / 2;
     robot->position_y = WINDOW_HEIGHT / 2;
     robot->orientation = 45;
+    robot->height = 80;
+    robot->width = 80;
     robot->sensors.forward = 0;
     robot->sensors.left = 0;
     robot->sensors.right = 0;
 
-    return out;
+    return robot_texture;
 }
 
 Uint32 getpixel(SDL_Surface *surface, int x, int y)
@@ -162,11 +179,8 @@ Uint32 getpixel(SDL_Surface *surface, int x, int y)
 
 void draw_robot(struct GameWindow *pmaze_window, struct Robot *robot, SDL_Texture **robot_texture, struct GameData *pdata, SDL_Surface **surface)
 {
-    SDL_SetRenderTarget(pmaze_window->renderer, *robot_texture);
-    SDL_SetRenderDrawColor(pmaze_window->renderer, 0x00, 0xFF, 0xFF, 0xFF);
-
-    const int robot_w = 20;
-    const int robot_h = 40;
+    //SDL_SetRenderTarget(pmaze_window->renderer, *robot_texture);
+    //SDL_SetRenderDrawColor(pmaze_window->renderer, 0x00, 0xFF, 0xFF, 0xFF);
 
     double unit_y = SDL_cos(robot->orientation * (PI / 180));
     double unit_x = SDL_sin(robot->orientation * (PI / 180));
@@ -174,67 +188,15 @@ void draw_robot(struct GameWindow *pmaze_window, struct Robot *robot, SDL_Textur
     double normal_unit_y = SDL_cos((robot->orientation + 90) * (PI / 180));
     double normal_unit_x = SDL_sin((robot->orientation + 90) * (PI / 180));
 
-    switch (pdata->key_state)
-    {
-    case UP:
-        robot->position_y -= unit_y;
-        robot->position_x += unit_x;
-        break;
-    case DOWN:
-        robot->position_y += unit_y;
-        robot->position_x -= unit_x;
-        break;
-    case RIGHT:
-        robot->orientation += 1;
-        break;
-    case LEFT:
-        robot->orientation -= 1;
-        break;
-    case NONE:
-        break;
-    }
-
-    printf("robot sensors forward: %d right: %d left %d\n", robot->sensors.forward, robot->sensors.right, robot->sensors.left);
-
-    if (robot->sensors.forward == 0 || robot->sensors.right )
-    {
-        robot->position_y -= unit_y;
-        robot->position_x += unit_x;
-    }
-    else if (robot->sensors.right && robot->sensors.left)
-    {
-        robot->orientation += 3;
-    }
-    else if (robot->sensors.forward && robot->sensors.left)
-    {
-        robot->orientation += 3;
-    }
-    else if (robot->sensors.forward && robot->sensors.right)
-    {
-        robot->orientation -= 3;
-        printf("orientation %f\n", robot->orientation);
-    }
-    else
-    {
-        robot->orientation += 3;
-    }
-
-    SDL_Rect renderQuad = {SDL_floor(robot->position_x), SDL_floor(robot->position_y), robot_w, robot_h};
-    SDL_RenderClear(pmaze_window->renderer);
-    SDL_SetRenderDrawColor(pmaze_window->renderer, 0x00, 0x00, 0xFF, 0xFF);
-
-    SDL_SetRenderTarget(pmaze_window->renderer, NULL);
-    SDL_RenderCopyEx(pmaze_window->renderer, *robot_texture, NULL, &renderQuad, robot->orientation, NULL, SDL_FLIP_NONE);
-
     SDL_SetRenderDrawColor(pmaze_window->renderer, 0xFF, 0x00, 0x00, 0xFF);
 
-    double x_test = robot->position_x + robot_w / 2;
-    double y_test = robot->position_y + robot_h / 2;
-    double x_normal = robot->position_x + robot_w / 2;
-    double y_normal = robot->position_y + robot_h / 2;
+    double x_test = robot->position_x + robot->width / 2;
+    double y_test = robot->position_y + robot->height / 2;
+    double x_normal = robot->position_x + robot->width / 2;
+    double y_normal = robot->position_y + robot->height / 2;
 
-    double n_x_normal = robot->position_x + robot_w / 2;
-    double n_y_normal = robot->position_y + robot_h / 2;
+    double n_x_normal = robot->position_x + robot->width / 2;
+    double n_y_normal = robot->position_y + robot->height / 2;
 
     robot->sensors.forward = 0;
     robot->sensors.right = 0;
@@ -260,7 +222,6 @@ void draw_robot(struct GameWindow *pmaze_window, struct Robot *robot, SDL_Textur
         }
         else
         {
-            printf("collision forward\n");
             robot->sensors.forward = 1;
         }
         if (y_normal > 0 && y_normal < WINDOW_HEIGHT && x_normal > 0 && x_normal < WINDOW_WIDTH)
@@ -272,7 +233,6 @@ void draw_robot(struct GameWindow *pmaze_window, struct Robot *robot, SDL_Textur
         }
         else
         {
-            printf("collision right\n");
             robot->sensors.right = 1;
         }
         if (n_y_normal > 0 && n_y_normal < WINDOW_HEIGHT && n_x_normal > 0 && n_x_normal < WINDOW_WIDTH)
@@ -284,7 +244,6 @@ void draw_robot(struct GameWindow *pmaze_window, struct Robot *robot, SDL_Textur
         }
         else
         {
-            printf("collision left\n");
             robot->sensors.left = 1;
         }
 
@@ -302,6 +261,60 @@ void draw_robot(struct GameWindow *pmaze_window, struct Robot *robot, SDL_Textur
         }
     }
     SDL_SetRenderDrawColor(pmaze_window->renderer, 0xFF, 0xFF, 0xFF, 0xFF);
+
+    switch (pdata->key_state)
+    {
+    case UP:
+        robot->position_y -= unit_y;
+        robot->position_x += unit_x;
+        break;
+    case DOWN:
+        robot->position_y += unit_y;
+        robot->position_x -= unit_x;
+        break;
+    case RIGHT:
+        robot->orientation += 1;
+        break;
+    case LEFT:
+        robot->orientation -= 1;
+        break;
+    case NONE:
+        break;
+    }
+
+    printf("robot sensors forward: %d right: %d left %d\n", robot->sensors.forward, robot->sensors.right, robot->sensors.left);
+
+    if (robot->sensors.forward == 0)
+    {
+        robot->position_y -= unit_y;
+        robot->position_x += unit_x;
+    }
+    else if (robot->sensors.right && robot->sensors.left)
+    {
+        robot->orientation += 4;
+    }
+    else if (robot->sensors.forward && robot->sensors.left)
+    {
+        robot->orientation += 4;
+    }
+    else if (robot->sensors.forward && robot->sensors.right)
+    {
+        robot->orientation += 4;
+        printf("orientation %f\n", robot->orientation);
+    }
+    else
+    {
+        robot->orientation += 4;
+    }
+
+    SDL_Rect renderQuad = {SDL_floor(robot->position_x), SDL_floor(robot->position_y), robot->width, robot->height};
+    //SDL_RenderClear(pmaze_window->renderer);
+    //SDL_SetRenderDrawColor(pmaze_window->renderer, 0x00, 0x00, 0xFF, 0xFF);
+
+    SDL_SetRenderTarget(pmaze_window->renderer, NULL);
+    SDL_RenderCopyEx(pmaze_window->renderer, *robot_texture, NULL, &renderQuad, robot->orientation, NULL, SDL_FLIP_NONE);
+
+
     //SDL_RenderCopyEx(pmaze_window->renderer,*robot_texture, NULL, &renderQuad, robot->orientation, NULL, SDL_FLIP_NONE);
 
     //SDL_SetRenderTarget(pmaze_window->renderer,NULL);
@@ -335,11 +348,11 @@ int main(int argc, char *argv[])
 
         maze = SDL_GetWindowSurface(maze_window.window);
         robot = robot_init(&maze_window, &myRobot);
-
         if (robot == NULL)
         {
             printf("failed to load texture\n");
         }
+
         printf("Texture id: %p\n", robot);
         data.mouse_down = 0;
         data.key_state = NONE;
@@ -383,7 +396,6 @@ int main(int argc, char *argv[])
                     data.key_state = NONE;
                 }
             }
-
             if (data.mouse_down)
             {
                 SDL_GetMouseState(&data.mouse_x, &data.mouse_y);
@@ -392,14 +404,17 @@ int main(int argc, char *argv[])
             //Clear screen
             SDL_RenderClear(maze_window.renderer);
 
+            //Render Paint Layer
             paint = brush(&maze_window, &data, &maze);
             SDL_RenderCopy(maze_window.renderer, paint, NULL, NULL);
 
+            //Render Robot
             draw_robot(&maze_window, &myRobot, &robot, &data, &maze);
 
-            SDL_RenderPresent(maze_window.renderer);
             //Update screen
+            SDL_RenderPresent(maze_window.renderer);
 
+            //Destroy Texture
             SDL_DestroyTexture(paint);
         }
     }
